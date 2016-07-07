@@ -1,0 +1,2 @@
+#define solar-pool_VERSION_MAJOR @solar-pool_VERSION_MAJOR@
+#define solar-pool_VERSION_MINOR @solar-pool_VERSION_MINOR@
