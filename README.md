@@ -1,4 +1,4 @@
-# solar-pool
+# solarpool
 Solar pool control with Arduino
 
 ## Used parts (electrical system):
