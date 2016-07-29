@@ -6,7 +6,7 @@
  *  DS18B20 temperature sensors (1wire)
  *  SainSmart relay
  *
- * Version: 1.0, July 24, 2016
+ * Version: 1.1, July 29, 2016
  * (c)
  * Author: Sander Ruitenbeek <sander@grids.be>
  */
@@ -100,7 +100,8 @@ boolean setRelay(float roofTemp, float waterTemp) {
   boolean success;
   if ( (roofTemp == -127.00) || (waterTemp == -127.00) ) {
     success = false;
-  } else {
+  }
+  else {
     success = true;
     // do we need to pump, based on these temperatures?
     boolean active = decidePump(roofTemp, waterTemp);
@@ -108,40 +109,47 @@ boolean setRelay(float roofTemp, float waterTemp) {
     if (active) {
       digitalWrite(pumpRelay, LOW);
       Serial.print("[ON] ");
-    } else {
+    }
+    else {
       digitalWrite(pumpRelay, HIGH);
       Serial.print("[OFF] ");
     }
   }
   if (success) {
     Serial.print("[OK]\r\n");
-  } else {
+  }
+  else {
     Serial.print("[FAIL]\r\n");
   }
 
   return success;
 }
 
+boolean doProbe = true; // first run is always a probe
+
 boolean decidePump(float roofTemp, float waterTemp) {
   boolean on = false; // default = off
 
-  if ( ! digitalRead(pumpActiveLed) ) {
+  if ( ! digitalRead(pumpActiveLed) && doProbe ) {
     // Run once to make sure we measure the right water temperature
     on = (roofTemp > ROOF_START_TEMPERATURE);
-  } else {
+    doProbe = false;
+  }
+  else {
     if (waterTemp < WATER_STOP_TEMPERATURE) {
       // added the .3 here to counter for "debouncing"
       on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE);
-    } else {
+    }
+    else {
       // too hot already, don't heat up and start cooling
       on = (roofTemp < waterTemp);
     }
   }
-
   return on;
 }
 
 void loop() {
+  int loopsWithoutProbe = 0; // count the loops to set a probe every ~10 mins
   while (true) {
     // toggle led to show activity
     digitalWrite(onboardLed, !digitalRead(onboardLed));
@@ -166,8 +174,14 @@ void loop() {
     delay(30000);
     if (ledOn) {
       running += 0.5;
-    } else {
-      running = 0;
+    }
+    else {
+      running = -1;
+      loopsWithoutProbe++;
+      if ( loopsWithoutProbe == 20 ) {
+        doProbe = true;
+        loopsWithoutProbe = 0;
+      }
     }
   }
 }
