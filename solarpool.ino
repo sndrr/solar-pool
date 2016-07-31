@@ -6,9 +6,9 @@
  *  DS18B20 temperature sensors (1wire)
  *  SainSmart relay
  *
- * Version: 1.1, July 29, 2016
- * (c)
- * Author: Sander Ruitenbeek <sander@grids.be>
+ * @version 1.1.1, July 31, 2016
+ * @copyright Sander Ruitenbeek
+ * @author Sander Ruitenbeek <sander@grids.be>
  */
 
 #include <SSD1306Ascii.h>
@@ -130,19 +130,33 @@ boolean doProbe = true; // first run is always a probe
 boolean decidePump(float roofTemp, float waterTemp) {
   boolean on = false; // default = off
 
-  if ( ! digitalRead(pumpActiveLed) && doProbe ) {
-    // Run once to make sure we measure the right water temperature
+  boolean running = digitalRead(pumpActiveLed);
+  /*
+   * There are four states:
+   *  1. probe (first run, and every x minutes)
+   *  2. idle (roof < 22)
+   *  3. heat (roof > water AND water < 28) 
+   *  4. cool (roof < water AND water > 28)
+   */
+  // 1. Probe to make sure we measure the right water temperature
+  if ( !running && doProbe ) {
     on = (roofTemp > ROOF_START_TEMPERATURE);
     doProbe = false;
   }
   else {
-    if (waterTemp < WATER_STOP_TEMPERATURE) {
-      // added the .3 here to counter for "debouncing"
-      on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE);
+    // 2. Idle
+    if ( roofTemp < ROOF_START_TEMPERATURE ) {
+      on = false;
     }
     else {
-      // too hot already, don't heat up and start cooling
-      on = (roofTemp < waterTemp);
+      // 3. Heat the water
+      if ( waterTemp < WATER_STOP_TEMPERATURE) {
+        on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE);
+      }
+      // 4. Cool the water
+      else {
+        on = (roofTemp < waterTemp);
+      }
     }
   }
   return on;
