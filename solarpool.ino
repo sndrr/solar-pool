@@ -73,7 +73,7 @@ void setupOled() {
 
   uint32_t m = micros();
   oled.clear();  
-  oled.println("Pump control v1.0");
+  oled.println("Pump control v1.1-2");
   oled.println();
   oled.set2X();
   oled.println("Let's go!");
@@ -81,7 +81,7 @@ void setupOled() {
   oled.print("\nStartup in: ");
   oled.print(micros() - m);
   oled.println("ms");
-  delay(500);
+  delay(1500);
   oled.setScroll(true);
 }
 //------------------------------------------------------------------------------
@@ -141,20 +141,24 @@ boolean decidePump(float roofTemp, float waterTemp) {
   // 1. Probe to make sure we measure the right water temperature
   if ( !running && doProbe ) {
     on = (roofTemp > ROOF_START_TEMPERATURE);
+    Serial.println("Probe");
     doProbe = false;
   }
   else {
     // 2. Idle
     if ( roofTemp < ROOF_START_TEMPERATURE ) {
+      Serial.println("Idle");
       on = false;
     }
     else {
       // 3. Heat the water
       if ( waterTemp < WATER_STOP_TEMPERATURE) {
-        on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE);
+        Serial.println("Heat");
+        on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE && roofTemp > waterTemp);
       }
       // 4. Cool the water
       else {
+        Serial.println("Cool");
         on = (roofTemp < waterTemp);
       }
     }
@@ -174,7 +178,7 @@ void loop() {
     Serial.println(tempRoof);
     Serial.print("water temperature is: ");
     float tempWater = getTemperature(waterThermometer);
-    Serial.println(tempRoof);
+    Serial.println(tempWater);
 
     oled.print("d:");
     oled.print(tempRoof);
@@ -183,7 +187,8 @@ void loop() {
     oled.print("p:");
     oled.println(running);
     
-    boolean ledOn = setRelay(tempRoof, tempWater);
+    setRelay(tempRoof, tempWater);
+    boolean ledOn = !digitalRead(pumpRelay);
     digitalWrite(pumpActiveLed, ledOn);
     delay(30000);
     if (ledOn) {
