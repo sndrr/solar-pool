@@ -6,7 +6,7 @@
  *  DS18B20 temperature sensors (1wire)
  *  SainSmart relay
  *
- * @version 1.1.1, July 31, 2016
+ * @version 1.2, August 6, 2016
  * @copyright Sander Ruitenbeek
  * @author Sander Ruitenbeek <sander@grids.be>
  */
@@ -34,6 +34,9 @@ const int onboardLed = 13;
 const int pumpRelay = 4;
 const int relay2 = 5;
 
+// Set a minimum temperature difference
+const float diff = 0.3;
+
 // Set easier name for the display
 SSD1306AsciiAvrI2c oled;
 // Oled address: 0X3C+SA0 - 0x3C or 0x3D
@@ -43,7 +46,7 @@ SSD1306AsciiAvrI2c oled;
 #define ROOF_START_TEMPERATURE 22
 #define WATER_STOP_TEMPERATURE 28
 
-float running = 0;
+float startTempWater = 0;
 
 //------------------------------------------------------------------------------
 void setup() {         
@@ -151,15 +154,15 @@ boolean decidePump(float roofTemp, float waterTemp) {
       on = false;
     }
     else {
-      // 3. Heat the water
+      // 3. Heat the water (with minimal temp difference)
       if ( waterTemp < WATER_STOP_TEMPERATURE) {
         Serial.println("Heat");
-        on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE && roofTemp > waterTemp);
+        on = (roofTemp > ROOF_START_TEMPERATURE && roofTemp - diff > waterTemp);
       }
-      // 4. Cool the water
+      // 4. Cool the water (with minimal temp difference)
       else {
         Serial.println("Cool");
-        on = (roofTemp < waterTemp);
+        on = (roofTemp + diff < waterTemp);
       }
     }
   }
@@ -168,6 +171,9 @@ boolean decidePump(float roofTemp, float waterTemp) {
 
 void loop() {
   int loopsWithoutProbe = 0; // count the loops to set a probe every ~10 mins
+  int numLoops = 0;
+  int addedTemp = 0;
+  float startTempWater = 0;
   while (true) {
     // toggle led to show activity
     digitalWrite(onboardLed, !digitalRead(onboardLed));
@@ -179,23 +185,29 @@ void loop() {
     Serial.print("water temperature is: ");
     float tempWater = getTemperature(waterThermometer);
     Serial.println(tempWater);
+    // Save the (start) water temperature
+    if (numLoops == 1) {
+      startTempWater = tempWater;
+    }
 
     oled.print("d:");
     oled.print(tempRoof);
     oled.print("w:");
     oled.print(tempWater);
-    oled.print("p:");
-    oled.println(running);
+    oled.print("a:");
+    oled.println(addedTemp);
     
     setRelay(tempRoof, tempWater);
     boolean ledOn = !digitalRead(pumpRelay);
     digitalWrite(pumpActiveLed, ledOn);
     delay(30000);
     if (ledOn) {
-      running += 0.5;
+      addedTemp = tempWater - startTempWater;
+      numLoops += 1;
     }
     else {
-      running = -1;
+      addedTemp = 0;
+      numLoops = 0;
       loopsWithoutProbe++;
       if ( loopsWithoutProbe == 20 ) {
         doProbe = true;
