@@ -46,7 +46,7 @@ SSD1306AsciiAvrI2c oled;
 #define ROOF_START_TEMPERATURE 22
 #define WATER_STOP_TEMPERATURE 28
 
-float running = 0;
+float startTempWater = 0;
 
 //------------------------------------------------------------------------------
 void setup() {         
@@ -171,6 +171,9 @@ boolean decidePump(float roofTemp, float waterTemp) {
 
 void loop() {
   int loopsWithoutProbe = 0; // count the loops to set a probe every ~10 mins
+  int numLoops = 0;
+  int addedTemp = 0;
+  float startTempWater = 0;
   while (true) {
     // toggle led to show activity
     digitalWrite(onboardLed, !digitalRead(onboardLed));
@@ -182,23 +185,29 @@ void loop() {
     Serial.print("water temperature is: ");
     float tempWater = getTemperature(waterThermometer);
     Serial.println(tempWater);
+    // Save the (start) water temperature
+    if (numLoops == 1) {
+      startTempWater = tempWater;
+    }
 
     oled.print("d:");
     oled.print(tempRoof);
     oled.print("w:");
     oled.print(tempWater);
-    oled.print("p:");
-    oled.println(running);
+    oled.print("a:");
+    oled.println(addedTemp);
     
     setRelay(tempRoof, tempWater);
     boolean ledOn = !digitalRead(pumpRelay);
     digitalWrite(pumpActiveLed, ledOn);
     delay(30000);
     if (ledOn) {
-      running += 0.5;
+      addedTemp = tempWater - startTempWater;
+      numLoops += 1;
     }
     else {
-      running = -1;
+      addedTemp = 0;
+      numLoops = 0;
       loopsWithoutProbe++;
       if ( loopsWithoutProbe == 20 ) {
         doProbe = true;
