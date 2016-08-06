@@ -6,7 +6,7 @@
  *  DS18B20 temperature sensors (1wire)
  *  SainSmart relay
  *
- * @version 1.1.1, July 31, 2016
+ * @version 1.2, August 6, 2016
  * @copyright Sander Ruitenbeek
  * @author Sander Ruitenbeek <sander@grids.be>
  */
@@ -33,6 +33,9 @@ const int pumpActiveLed = 2;
 const int onboardLed = 13;
 const int pumpRelay = 4;
 const int relay2 = 5;
+
+// Set a minimum temperature difference
+const float diff = 0.3;
 
 // Set easier name for the display
 SSD1306AsciiAvrI2c oled;
@@ -151,15 +154,15 @@ boolean decidePump(float roofTemp, float waterTemp) {
       on = false;
     }
     else {
-      // 3. Heat the water
+      // 3. Heat the water (with minimal temp difference)
       if ( waterTemp < WATER_STOP_TEMPERATURE) {
         Serial.println("Heat");
-        on = (roofTemp - 0.3 > ROOF_START_TEMPERATURE && roofTemp > waterTemp);
+        on = (roofTemp > ROOF_START_TEMPERATURE && roofTemp - diff > waterTemp);
       }
-      // 4. Cool the water
+      // 4. Cool the water (with minimal temp difference)
       else {
         Serial.println("Cool");
-        on = (roofTemp < waterTemp);
+        on = (roofTemp + diff < waterTemp);
       }
     }
   }
